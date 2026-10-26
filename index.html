@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Aura Workspace</title>
+<style>
+  :root {
+    --aura: #6b7a99;
+    --aura-rgb: 107, 122, 153;
+    --bg: #07080d;
+    --surface: #0e1119;
+    --surface-2: #151926;
+    --line: #232940;
+    --text: #e8eaf2;
+    --muted: #8a92ad;
+    --radius: 12px;
+    --sans: "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", sans-serif;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; }
+  body {
+    font-family: var(--sans);
+    color: var(--text);
+    background: var(--bg);
+    line-height: 1.55;
+  }
+  .glow {
+    position: fixed; inset: 0; z-index: 0; pointer-events: none;
+    background:
+      radial-gradient(ellipse 120% 70% at 50% 0%, rgba(var(--aura-rgb), 0.42), transparent 70%),
+      radial-gradient(ellipse 90% 60% at 100% 100%, rgba(var(--aura-rgb), 0.20), transparent 70%);
+  }
+  button, input, textarea { font: inherit; color: inherit; }
+  :focus-visible { outline: 2px solid var(--aura); outline-offset: 2px; }
+
+  .shell { position: relative; z-index: 1; max-width: 1080px; margin: 0 auto; padding: 24px 18px 80px; }
+  header { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 28px; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 650; font-size: 1.15rem; letter-spacing: .01em; }
+  .orb { width: 14px; height: 14px; border-radius: 50%; background: var(--aura); box-shadow: 0 0 18px 3px var(--aura); }
+
+  nav[role=tablist] { display: flex; gap: 4px; padding: 4px; background: var(--surface); border: 1px solid var(--line); border-radius: 999px; }
+  nav button { border: 0; background: transparent; color: var(--muted); padding: 8px 18px; border-radius: 999px; cursor: pointer; transition: color .2s, background .2s; }
+  nav button:hover { color: var(--text); }
+  nav button[aria-selected=true] { background: var(--surface-2); color: var(--text); box-shadow: inset 0 0 0 1px var(--aura); }
+
+  section[hidden] { display: none; }
+  .card { background: rgba(14, 17, 25, 0.92); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; backdrop-filter: blur(6px); }
+  h2 { font-size: 1.05rem; margin: 0 0 12px; font-weight: 600; }
+  h3 { font-size: .95rem; margin: 0 0 10px; font-weight: 600; }
+  label { display: block; font-size: .85rem; color: var(--muted); margin-bottom: 6px; }
+  input[type=text], textarea {
+    width: 100%; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 11px 13px;
+    transition: border-color .2s, box-shadow .2s;
+  }
+  input[type=text]:focus, textarea:focus { outline: none; border-color: var(--aura); box-shadow: 0 0 0 3px rgba(var(--aura-rgb), 0.22); }
+  textarea { resize: vertical; }
+
+  .btn { border: 1px solid var(--aura); background: rgba(var(--aura-rgb), 0.16); padding: 9px 18px; border-radius: 10px; cursor: pointer; transition: background .2s; }
+  .btn:hover { background: rgba(var(--aura-rgb), 0.3); }
+  .btn.quiet { border-color: var(--line); background: transparent; color: var(--muted); }
+  .btn.quiet:hover { color: var(--text); border-color: var(--muted); }
+  .row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-top: 12px; }
+  .hint { font-size: .82rem; color: var(--muted); }
+  .empty { color: var(--muted); font-size: .92rem; padding: 6px 0; }
+
+  /* Journal */
+  .journal { max-width: 740px; margin: 0 auto; display: grid; gap: 22px; }
+  #journalInput { min-height: 190px; font-size: 1.05rem; line-height: 1.7; border: 0; background: transparent; padding: 4px; box-shadow: none !important; }
+  .mood-chip { display: inline-flex; align-items: center; gap: 8px; font-size: .88rem; color: var(--text); }
+  .mood-chip i { width: 9px; height: 9px; border-radius: 50%; background: var(--aura); box-shadow: 0 0 10px var(--aura); }
+  #feed { display: grid; gap: 12px; }
+  .entry { background: var(--surface); border: 1px solid var(--line); border-left: 4px solid var(--c, var(--muted)); border-radius: var(--radius); padding: 14px 16px; }
+  .entry-top { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; font-size: .82rem; color: var(--muted); margin-bottom: 6px; }
+  .entry-top b { color: var(--c); font-weight: 600; }
+  .entry p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .link-del { border: 0; background: none; color: var(--muted); cursor: pointer; font-size: .8rem; padding: 2px 4px; }
+  .link-del:hover { color: var(--text); }
+
+  /* Studio */
+  .studio { display: grid; grid-template-columns: 280px 1fr; gap: 18px; align-items: start; }
+  #tplList { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+  #tplList li { display: flex; align-items: stretch; gap: 4px; }
+  .tpl-btn { flex: 1; text-align: left; border: 1px solid var(--line); background: var(--bg); padding: 10px 12px; border-radius: 10px; cursor: pointer; transition: border-color .2s; }
+  .tpl-btn:hover { border-color: var(--muted); }
+  .tpl-btn[aria-current=true] { border-color: var(--aura); background: rgba(var(--aura-rgb), 0.1); }
+  .tpl-btn small { display: block; color: var(--muted); font-size: .78rem; }
+  .stack { display: grid; gap: 18px; }
+  #vars { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; }
+  #preview { font-family: var(--mono); font-size: .88rem; line-height: 1.65; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 14px; white-space: pre-wrap; overflow-wrap: anywhere; min-height: 120px; margin: 0; }
+  #preview mark { background: rgba(var(--aura-rgb), 0.22); color: var(--text); border-radius: 4px; padding: 0 2px; }
+  .field-gap { margin-bottom: 12px; }
+
+
+  /* Welcome / rename */
+  .brand { border: 0; background: none; padding: 0; cursor: pointer; color: var(--text); text-align: left; }
+  .brand:hover #brandText { text-decoration: underline; text-decoration-color: var(--muted); text-underline-offset: 4px; }
+  .overlay { position: fixed; inset: 0; z-index: 10; display: flex; align-items: center; justify-content: center; padding: 20px; background: rgba(4, 5, 9, 0.82); backdrop-filter: blur(8px); }
+  .overlay[hidden] { display: none; }
+  .welcome { width: 100%; max-width: 420px; background: var(--surface); border: 1px solid var(--aura); border-radius: 16px; padding: 26px; box-shadow: 0 0 60px rgba(var(--aura-rgb), 0.25); }
+  .welcome h2 { font-size: 1.3rem; margin-bottom: 8px; }
+  .welcome p { margin: 0 0 18px; color: var(--muted); font-size: .92rem; }
+  .welcome .row { margin-top: 16px; justify-content: flex-end; }
+
+  /* Stats, favorites, backup */
+  .bar-row { display: grid; grid-template-columns: 112px 1fr 24px; align-items: center; gap: 10px; font-size: .88rem; margin: 9px 0; }
+  .bar-track { background: var(--bg); border-radius: 999px; overflow: hidden; height: 8px; }
+  .bar { height: 100%; border-radius: 999px; background: var(--c); }
+  .bar-row b { text-align: right; font-weight: 600; }
+  #streak { margin: 0 0 6px; }
+  .link-del.on { color: var(--aura); }
+  .backup { margin-top: 26px; display: flex; justify-content: space-between; align-items: center; gap: 14px; flex-wrap: wrap; }
+  .backup h3 { margin-bottom: 4px; }
+  .backup p { margin: 0; }
+  .backup .btn { margin: 2px 4px 2px 0; }
+
+  /* Mood guide */
+  .guide summary { cursor: pointer; font-weight: 600; font-size: .95rem; }
+  .guide summary::marker { color: var(--aura); }
+  .guide .hint { margin: 10px 0 4px; }
+  .guide-row { margin-top: 14px; }
+  .guide-row h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 6px; }
+  .swatch { width: 12px; height: 12px; border-radius: 50%; background: var(--c); box-shadow: 0 0 10px var(--c); }
+  .chip { border: 1px solid var(--c); background: transparent; border-radius: 999px; padding: 4px 12px; margin: 3px 4px 3px 0; cursor: pointer; font-size: .86rem; }
+  .chip:hover { background: var(--surface-2); }
+
+  @media (max-width: 800px) { .studio { grid-template-columns: 1fr; } }
+  @media (prefers-reduced-motion: reduce) { :root, * { transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="glow" aria-hidden="true"></div>
+<div class="shell">
+  <header>
+    <button class="brand" id="brandBtn" type="button" title="Tap to change your workspace name"><span class="orb" aria-hidden="true"></span><span id="brandText">Aura Workspace</span></button>
+    <nav role="tablist" aria-label="Workspace panels">
+      <button role="tab" id="tab-journal" aria-controls="panel-journal" aria-selected="true">Mood journal</button>
+      <button role="tab" id="tab-studio" aria-controls="panel-studio" aria-selected="false">Prompt studio</button>
+    </nav>
+  </header>
+
+  <!-- Panel 1 -->
+  <section id="panel-journal" role="tabpanel" aria-labelledby="tab-journal" class="journal">
+    <div class="card">
+      <textarea id="journalInput" placeholder="What's on your mind today? Write freely. The workspace will pick up your mood as you type." aria-label="Journal entry"></textarea>
+      <div class="row">
+        <span class="mood-chip"><i></i><span id="moodLabel">Neutral</span></span>
+        <span>
+          <span class="hint">Ctrl + Enter to save&nbsp;&nbsp;</span>
+          <button class="btn" id="saveEntry" type="button">Save entry</button>
+        </span>
+      </div>
+    </div>
+    <details class="card guide">
+      <summary>See the mood colors and trigger words</summary>
+      <p class="hint">Write any of these words in your entry and the screen takes that mood's color. Tap a word to add it to your entry and watch the glow change.</p>
+      <div id="guideList"></div>
+    </details>
+    <div class="card">
+      <h2>Your last 7 days</h2>
+      <p class="hint" id="streak"></p>
+      <div id="stats"></div>
+    </div>
+    <div>
+      <h2>History</h2>
+      <div id="feed"></div>
+    </div>
+  </section>
+
+  <!-- Panel 2 -->
+  <section id="panel-studio" role="tabpanel" aria-labelledby="tab-studio" class="studio" hidden>
+    <aside class="card">
+      <h2>Templates</h2>
+      <ul id="tplList"></ul>
+    </aside>
+
+    <div class="stack">
+      <div class="card">
+        <h2 id="activeTitle">Playground</h2>
+        <div id="vars"></div>
+        <div class="row" style="margin-top:16px">
+          <h3 style="margin:0">Output preview</h3>
+          <button class="btn" id="copyBtn" type="button">Copy prompt</button>
+        </div>
+        <pre id="preview" aria-live="polite"></pre>
+      </div>
+
+      <div class="card" id="creatorCard">
+        <h2 id="creatorHeading">Create a template</h2>
+        <div class="field-gap">
+          <label for="newTitle">Title</label>
+          <input type="text" id="newTitle" placeholder="e.g. Client welcome message">
+        </div>
+        <div class="field-gap">
+          <label for="newBody">Prompt text. Wrap variables in square brackets, like [client_name].</label>
+          <textarea id="newBody" rows="5" placeholder="Write a warm welcome message for [client_name] who just ordered [service]."></textarea>
+        </div>
+        <div class="row" style="margin-top:0">
+          <span class="hint" id="detected">No variables detected yet.</span>
+          <span><button class="btn quiet" id="cancelEdit" type="button" hidden>Cancel</button> <button class="btn" id="saveTpl" type="button">Save template</button></span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer class="card backup">
+    <div>
+      <h3>Backup</h3>
+      <p class="hint" id="backupMsg">Save a copy of your journal and templates, or load one back in.</p>
+    </div>
+    <span>
+      <button class="btn quiet" id="exportBtn" type="button">Download backup</button>
+      <button class="btn quiet" id="importBtn" type="button">Restore backup</button>
+      <input type="file" id="importFile" accept="application/json,.json" hidden>
+    </span>
+  </footer>
+</div>
+
+<div class="overlay" id="welcome" role="dialog" aria-modal="true" aria-labelledby="welcomeTitle" hidden>
+  <div class="welcome" id="welcomeForm">
+    <h2 id="welcomeTitle">Welcome. What should we call your workspace?</h2>
+    <p>Type your name and your workspace becomes "Your Name Aura Workspace".</p>
+    <label for="nameInput">Your name</label>
+    <input type="text" id="nameInput" maxlength="30" autocomplete="given-name" placeholder="e.g. Wuraola">
+    <div class="row">
+      <button class="btn quiet" id="nameCancel" type="button" hidden>Cancel</button>
+      <button class="btn" id="nameSave" type="button">Start my workspace</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+
+  /* ---------- Storage ---------- */
+  const KEYS = { journal: 'journal_entries', prompts: 'prompt_templates' };
+  const load = (key, fallback) => {
+    try { const raw = localStorage.getItem(key); return raw ? JSON.parse(raw) : fallback; }
+    catch { return fallback; }
+  };
+  const save = (key, value) => {
+    try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) { console.warn('Storage unavailable', e); }
+  };
+  const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+
+  const DEFAULT_TEMPLATES = [
+    {
+      id: 'seed-youtube', builtin: true,
+      title: 'YouTube story script',
+      body: 'Write a faceless YouTube script about [topic] for a [audience] audience. The video should run about [video_length] minutes in a [tone] tone.\n\nWrite clean spoken text only, with no timecodes and no brackets. Break the script into blocks of about 25-30 words, with a blank line between blocks, one block per image.\n\nAfter the script, add a separate numbered list of image ideas, one for each block.'
+    },
+    {
+      id: 'seed-design', builtin: true,
+      title: 'Design brief for a client',
+      body: 'Act as a brand designer. I am designing a [design_type] for [client_name], a [business_type] in [city].\n\nStyle: [style]. Colors: [colors]. Audience: [audience].\n\nGive me 3 concept directions, suggested fonts, and layout tips I can build on my phone.'
+    },
+    {
+      id: 'seed-captions', builtin: true,
+      title: 'Social media captions',
+      body: 'Write 5 Instagram captions for [business_name] promoting [offer]. Audience: [audience]. Tone: [tone].\n\nKeep each caption under [max_words] words, end with a clear call to action, and suggest 5 relevant hashtags for each.'
+    }
+  ];
+
+  let entries = load(KEYS.journal, []);
+  let templates = load(KEYS.prompts, null);
+  if (!Array.isArray(templates)) templates = [];
+  templates = templates.filter(t => !['seed-review', 'seed-spec'].includes(t.id));
+  DEFAULT_TEMPLATES.slice().reverse().forEach(d => { if (!templates.some(t => t.id === d.id)) templates.unshift(d); });
+  save(KEYS.prompts, templates);
+
+  /* ---------- DOM ---------- */
+  const $ = (id) => document.getElementById(id);
+  const root = document.documentElement;
+
+  /* ---------- Mood engine ---------- */
+  const MOODS = {
+    neutral: { label: 'Neutral',        color: '#6b7a99', words: [] },
+    focus:   { label: 'Deep focus',     color: '#22d3ee', examples: ['focus', 'deadline', 'productive', 'work', 'study', 'concentrate', 'task', 'goal', 'build', 'code', 'project', 'plan', 'learn', 'finish', 'grind', 'discipline'], words: ['focus', 'deadline', 'productiv', 'work', 'study', 'concentrat', 'deep', 'task', 'goal', 'build', 'code', 'coding', 'ship', 'project', 'disciplin', 'grind', 'locked', 'plan', 'learn', 'finish'] },
+    hype:    { label: 'Hype',           color: '#ff2e97', examples: ['excited', 'hype', 'energy', 'pumped', 'amazing', 'awesome', 'thrilled', 'fire', 'party', 'celebrate', 'win', 'love', 'incredible', 'dance', 'alive', 'wow', 'yay'], words: ['excit', 'hype', 'energ', 'pumped', 'amaz', 'awesome', 'thrill', 'fire', 'unstoppable', 'party', 'celebrat', 'win', 'won', 'love', 'incredible', 'dance', 'alive', 'electric', 'wow', 'yay'] },
+    calm:    { label: 'Calm and zen',   color: '#b69cff', examples: ['calm', 'peace', 'zen', 'breathe', 'meditate', 'quiet', 'gentle', 'relax', 'grateful', 'gratitude', 'balance', 'mindful', 'soft', 'rest', 'safe'], words: ['calm', 'peace', 'zen', 'breath', 'meditat', 'quiet', 'still', 'gentle', 'serene', 'relax', 'grateful', 'gratitude', 'balanc', 'mindful', 'soft', 'rest', 'safe', 'slow'] },
+    mellow:  { label: 'Mellow',         color: '#c9a45c', examples: ['mellow', 'tired', 'cozy', 'lazy', 'sunday', 'nostalgic', 'tea', 'coffee', 'rain', 'sleepy', 'chill', 'warm', 'evening', 'lofi', 'blanket', 'dusk'], words: ['mellow', 'tired', 'cozy', 'lazy', 'sunday', 'nostalg', 'tea', 'coffee', 'rain', 'slowly', 'sleepy', 'chill', 'drift', 'wistful', 'warm', 'evening', 'lofi', 'blanket', 'dusk', 'ok'] }
+  };
+
+  function analyzeMood(text) {
+    const tokens = text.toLowerCase().match(/[a-z']+/g) || [];
+    let best = 'neutral', top = 0;
+    for (const [key, mood] of Object.entries(MOODS)) {
+      if (key === 'neutral') continue;
+      let score = 0;
+      for (const t of tokens) {
+        if (mood.words.some(w => w.length <= 3 ? t === w : t.startsWith(w))) score++;
+      }
+      if (score > top) { top = score; best = key; }
+    }
+    return best;
+  }
+
+  function applyMood(key) {
+    const m = MOODS[key] || MOODS.neutral;
+    root.style.setProperty('--aura', m.color);
+    const n = parseInt(m.color.slice(1), 16);
+    root.style.setProperty('--aura-rgb', ((n >> 16) & 255) + ', ' + ((n >> 8) & 255) + ', ' + (n & 255));
+    $('moodLabel').textContent = m.label;
+  }
+
+  /* ---------- Tabs ---------- */
+  const tabs = [...document.querySelectorAll('[role=tab]')];
+  tabs.forEach(tab => tab.addEventListener('click', () => {
+    tabs.forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', on);
+      $(t.getAttribute('aria-controls')).hidden = !on;
+    });
+  }));
+
+  /* ---------- Journal ---------- */
+  const input = $('journalInput');
+  input.addEventListener('input', () => applyMood(analyzeMood(input.value)));
+  input.addEventListener('keydown', (e) => { if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') commitEntry(); });
+  $('saveEntry').addEventListener('click', commitEntry);
+
+  function commitEntry() {
+    const text = input.value.trim();
+    if (!text) { input.focus(); return; }
+    const mood = analyzeMood(text);
+    entries.unshift({ id: uid(), text, mood, ts: new Date().toISOString() });
+    save(KEYS.journal, entries);
+    input.value = '';
+    applyMood(mood);
+    renderFeed();
+  }
+
+  const dayKey = (d) => d.getFullYear() + '-' + d.getMonth() + '-' + d.getDate();
+
+  function renderStats() {
+    const box = $('stats');
+    box.replaceChildren();
+    const now = new Date();
+    const since = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6).getTime();
+    const counts = {};
+    for (const e of entries) {
+      if (new Date(e.ts).getTime() >= since) counts[e.mood] = (counts[e.mood] || 0) + 1;
+    }
+    const keys = Object.keys(counts).sort((a, b) => counts[b] - counts[a]);
+    if (!keys.length) {
+      const p = document.createElement('p');
+      p.className = 'empty';
+      p.textContent = 'Save an entry to see your mood pattern for the last 7 days.';
+      box.append(p);
+    }
+    for (const k of keys) {
+      const m = MOODS[k] || MOODS.neutral;
+      const row = document.createElement('div');
+      row.className = 'bar-row';
+      row.style.setProperty('--c', m.color);
+      const name = document.createElement('span'); name.textContent = m.label;
+      const track = document.createElement('div'); track.className = 'bar-track';
+      const bar = document.createElement('div'); bar.className = 'bar';
+      bar.style.width = (counts[k] / counts[keys[0]] * 100) + '%';
+      track.append(bar);
+      const n = document.createElement('b'); n.textContent = counts[k];
+      row.append(name, track, n);
+      box.append(row);
+    }
+    const days = new Set(entries.map(e => dayKey(new Date(e.ts))));
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    if (!days.has(dayKey(d))) d.setDate(d.getDate() - 1);
+    let streak = 0;
+    while (days.has(dayKey(d))) { streak++; d.setDate(d.getDate() - 1); }
+    $('streak').textContent = streak
+      ? streak + (streak === 1 ? ' day' : ' days') + ' writing streak'
+      : 'Write today to start a streak.';
+  }
+
+  function renderFeed() {
+    renderStats();
+    const feed = $('feed');
+    feed.replaceChildren();
+    if (!entries.length) {
+      const p = document.createElement('p');
+      p.className = 'empty';
+      p.textContent = 'No entries yet. Write something above and save it to start your history.';
+      feed.append(p);
+      return;
+    }
+    for (const e of entries) {
+      const mood = MOODS[e.mood] || MOODS.neutral;
+      const card = document.createElement('article');
+      card.className = 'entry';
+      card.style.setProperty('--c', mood.color);
+
+      const top = document.createElement('div');
+      top.className = 'entry-top';
+      const left = document.createElement('span');
+      const when = new Date(e.ts);
+      left.textContent = when.toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })
+        + ' at ' + when.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' }) + '  ';
+      const tag = document.createElement('b');
+      tag.textContent = mood.label;
+      left.append(tag);
+      const del = document.createElement('button');
+      del.className = 'link-del'; del.type = 'button'; del.textContent = 'Delete';
+      del.addEventListener('click', () => {
+        entries = entries.filter(x => x.id !== e.id);
+        save(KEYS.journal, entries);
+        renderFeed();
+      });
+      top.append(left, del);
+
+      const body = document.createElement('p');
+      body.textContent = e.text;
+      card.append(top, body);
+      feed.append(card);
+    }
+  }
+
+  /* ---------- Prompt studio ---------- */
+  const VAR_RE = /\[([^[\]]+)\]/g;
+  let activeId = templates[0].id;
+  const values = {}; // values[templateId][varName]
+
+  const extractVars = (text) => [...new Set([...text.matchAll(VAR_RE)].map(m => m[1].trim()))];
+  const activeTpl = () => templates.find(t => t.id === activeId) || templates[0];
+
+  let editingId = null;
+
+  function resetCreator() {
+    editingId = null;
+    $('newTitle').value = ''; $('newBody').value = '';
+    $('detected').textContent = 'No variables detected yet.';
+    $('creatorHeading').textContent = 'Create a template';
+    $('saveTpl').textContent = 'Save template';
+    $('cancelEdit').hidden = true;
+  }
+
+  function startEdit(t) {
+    editingId = t.id;
+    $('newTitle').value = t.title;
+    $('newBody').value = t.body;
+    const vars = extractVars(t.body);
+    $('detected').textContent = vars.length ? 'Variables found: ' + vars.join(', ') : 'No variables detected yet.';
+    $('creatorHeading').textContent = 'Edit template';
+    $('saveTpl').textContent = 'Update template';
+    $('cancelEdit').hidden = false;
+    $('creatorCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    $('newTitle').focus();
+  }
+
+  function renderList() {
+    const ul = $('tplList');
+    ul.replaceChildren();
+    const sorted = [...templates].sort((x, y) => (y.fav ? 1 : 0) - (x.fav ? 1 : 0));
+    for (const t of sorted) {
+      const li = document.createElement('li');
+      const btn = document.createElement('button');
+      btn.type = 'button'; btn.className = 'tpl-btn';
+      btn.setAttribute('aria-current', t.id === activeId);
+      const name = document.createElement('span'); name.textContent = t.title;
+      const meta = document.createElement('small');
+      const n = extractVars(t.body).length;
+      meta.textContent = n + (n === 1 ? ' variable' : ' variables') + (t.builtin ? ', built in' : '');
+      btn.append(name, meta);
+      btn.addEventListener('click', () => { activeId = t.id; renderList(); renderPlayground(); });
+
+      const star = document.createElement('button');
+      star.type = 'button';
+      star.className = 'link-del' + (t.fav ? ' on' : '');
+      star.textContent = t.fav ? '★' : '☆';
+      star.setAttribute('aria-pressed', !!t.fav);
+      star.setAttribute('aria-label', (t.fav ? 'Remove favorite: ' : 'Favorite: ') + t.title);
+      star.addEventListener('click', () => { t.fav = !t.fav; save(KEYS.prompts, templates); renderList(); });
+
+      const edit = document.createElement('button');
+      edit.type = 'button'; edit.className = 'link-del'; edit.textContent = 'Edit';
+      edit.setAttribute('aria-label', 'Edit template ' + t.title);
+      edit.addEventListener('click', () => startEdit(t));
+
+      li.append(btn, star, edit);
+      if (!t.builtin) {
+        const del = document.createElement('button');
+        del.type = 'button'; del.className = 'link-del'; del.textContent = 'Delete';
+        del.setAttribute('aria-label', 'Delete template ' + t.title);
+        del.addEventListener('click', () => {
+          templates = templates.filter(x => x.id !== t.id);
+          save(KEYS.prompts, templates);
+          if (editingId === t.id) resetCreator();
+          if (activeId === t.id) activeId = templates[0].id;
+          renderList(); renderPlayground();
+        });
+        li.append(del);
+      }
+      ul.append(li);
+    }
+  }
+
+  function renderPlayground() {
+    const tpl = activeTpl();
+    $('activeTitle').textContent = tpl.title;
+    const box = $('vars');
+    box.replaceChildren();
+    const vars = extractVars(tpl.body);
+    values[tpl.id] = values[tpl.id] || {};
+    if (!vars.length) {
+      const p = document.createElement('p');
+      p.className = 'empty'; p.textContent = 'This template has no [variables]. The preview shows the prompt as written.';
+      box.append(p);
+    }
+    vars.forEach((name, i) => {
+      const wrap = document.createElement('div');
+      const lab = document.createElement('label');
+      const id = 'var-' + i;
+      lab.htmlFor = id; lab.textContent = name;
+      const inp = document.createElement('input');
+      inp.type = 'text'; inp.id = id; inp.autocomplete = 'off';
+      inp.placeholder = 'Value for ' + name;
+      inp.value = values[tpl.id][name] || '';
+      inp.addEventListener('input', () => { values[tpl.id][name] = inp.value; renderPreview(); });
+      wrap.append(lab, inp);
+      box.append(wrap);
+    });
+    renderPreview();
+  }
+
+  // Global search-and-replace of every [placeholder]; unfilled ones stay highlighted.
+  function compile(tpl, asNodes) {
+    const vals = values[tpl.id] || {};
+    if (!asNodes) return tpl.body.replace(VAR_RE, (m, n) => vals[n.trim()] ? vals[n.trim()] : m);
+    const frag = document.createDocumentFragment();
+    let last = 0;
+    for (const m of tpl.body.matchAll(VAR_RE)) {
+      frag.append(tpl.body.slice(last, m.index));
+      const v = vals[m[1].trim()];
+      if (v) frag.append(v);
+      else { const mk = document.createElement('mark'); mk.textContent = m[0]; frag.append(mk); }
+      last = m.index + m[0].length;
+    }
+    frag.append(tpl.body.slice(last));
+    return frag;
+  }
+
+  function renderPreview() {
+    const pre = $('preview');
+    pre.replaceChildren(compile(activeTpl(), true));
+  }
+
+  /* Copy utility */
+  $('copyBtn').addEventListener('click', async () => {
+    const btn = $('copyBtn');
+    const text = compile(activeTpl(), false);
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      const ta = document.createElement('textarea');
+      ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.append(ta); ta.select();
+      try { document.execCommand('copy'); } catch {}
+      ta.remove();
+    }
+    btn.textContent = 'Copied! ✨';
+    clearTimeout(btn._t);
+    btn._t = setTimeout(() => { btn.textContent = 'Copy prompt'; }, 1800);
+  });
+
+  /* Creator engine */
+  $('newBody').addEventListener('input', () => {
+    const vars = extractVars($('newBody').value);
+    $('detected').textContent = vars.length
+      ? 'Variables found: ' + vars.join(', ')
+      : 'No variables detected yet.';
+  });
+
+  $('saveTpl').addEventListener('click', () => {
+    const title = $('newTitle').value.trim();
+    const body = $('newBody').value.trim();
+    if (!title) { $('newTitle').focus(); return; }
+    if (!body) { $('newBody').focus(); return; }
+    if (editingId) {
+      const t = templates.find(x => x.id === editingId);
+      if (t) { t.title = title; t.body = body; activeId = t.id; }
+    } else {
+      const tpl = { id: uid(), title, body, builtin: false, fav: false };
+      templates.push(tpl);
+      activeId = tpl.id;
+    }
+    save(KEYS.prompts, templates);
+    resetCreator();
+    renderList(); renderPlayground();
+  });
+  $('cancelEdit').addEventListener('click', resetCreator);
+
+  /* ---------- Workspace name ---------- */
+  const NAME_KEY = 'workspace_name';
+  let ownerName = load(NAME_KEY, '');
+  const welcome = $('welcome'), nameInput = $('nameInput'), nameCancel = $('nameCancel');
+
+  function renderBrand() {
+    const title = (ownerName ? ownerName + ' ' : '') + 'Aura Workspace';
+    $('brandText').textContent = title;
+    document.title = title;
+  }
+  function openWelcome() {
+    nameInput.value = ownerName;
+    nameCancel.hidden = !ownerName;
+    welcome.hidden = false;
+    nameInput.focus();
+    nameInput.select();
+  }
+  function closeWelcome() { welcome.hidden = true; }
+
+  $('brandBtn').addEventListener('click', openWelcome);
+  nameCancel.addEventListener('click', closeWelcome);
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && ownerName && !welcome.hidden) closeWelcome(); });
+  function saveName() {
+    const name = nameInput.value.trim().slice(0, 30);
+    if (!name) { nameInput.focus(); return; }
+    ownerName = name;
+    save(NAME_KEY, ownerName);
+    renderBrand();
+    closeWelcome();
+  }
+  $('nameSave').addEventListener('click', saveName);
+  nameInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); saveName(); } });
+
+  /* ---------- Backup and restore ---------- */
+  const note = (msg) => { $('backupMsg').textContent = msg; };
+
+  $('exportBtn').addEventListener('click', () => {
+    const data = {
+      app: 'aura-workspace', version: 1, exported: new Date().toISOString(),
+      workspace_name: ownerName, journal_entries: entries, prompt_templates: templates
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'aura-workspace-backup-' + new Date().toISOString().slice(0, 10) + '.json';
+    document.body.append(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    note('Backup downloaded. Keep the file somewhere safe.');
+  });
+
+  $('importBtn').addEventListener('click', () => $('importFile').click());
+  $('importFile').addEventListener('change', async (ev) => {
+    const file = ev.target.files[0];
+    ev.target.value = '';
+    if (!file) return;
+    try {
+      const d = JSON.parse(await file.text());
+      if (!d || d.app !== 'aura-workspace') throw new Error('wrong file');
+      const knownE = new Set(entries.map(e => e.id));
+      let addedE = 0;
+      for (const e of Array.isArray(d.journal_entries) ? d.journal_entries : []) {
+        if (!e || typeof e.text !== 'string' || !e.ts || isNaN(new Date(e.ts))) continue;
+        const id = String(e.id || uid());
+        if (knownE.has(id)) continue;
+        knownE.add(id);
+        entries.push({ id, text: e.text, mood: MOODS[e.mood] ? e.mood : 'neutral', ts: e.ts });
+        addedE++;
+      }
+      entries.sort((x, y) => new Date(y.ts) - new Date(x.ts));
+      const knownT = new Set(templates.map(t => t.id));
+      let addedT = 0;
+      for (const t of Array.isArray(d.prompt_templates) ? d.prompt_templates : []) {
+        if (!t || typeof t.title !== 'string' || typeof t.body !== 'string') continue;
+        const id = String(t.id || uid());
+        if (knownT.has(id)) continue;
+        knownT.add(id);
+        templates.push({ id, title: t.title, body: t.body, builtin: false, fav: !!t.fav });
+        addedT++;
+      }
+      if (!ownerName && typeof d.workspace_name === 'string' && d.workspace_name.trim()) {
+        ownerName = d.workspace_name.trim().slice(0, 30);
+        save(NAME_KEY, ownerName);
+        renderBrand();
+        closeWelcome();
+      }
+      save(KEYS.journal, entries);
+      save(KEYS.prompts, templates);
+      renderFeed(); renderList(); renderPlayground();
+      note('Restored ' + addedE + ' journal ' + (addedE === 1 ? 'entry' : 'entries') + ' and ' + addedT + ' ' + (addedT === 1 ? 'template' : 'templates') + '.');
+    } catch {
+      note('That file could not be read. Choose a backup file downloaded from this app.');
+    }
+  });
+
+  /* ---------- Mood guide ---------- */
+  function renderGuide() {
+    const box = $('guideList');
+    box.replaceChildren();
+    for (const m of Object.values(MOODS)) {
+      const row = document.createElement('div');
+      row.className = 'guide-row';
+      row.style.setProperty('--c', m.color);
+      const h = document.createElement('h3');
+      const dot = document.createElement('span'); dot.className = 'swatch';
+      h.append(dot, m.label);
+      row.append(h);
+      if (m.examples) {
+        for (const w of m.examples) {
+          const chip = document.createElement('button');
+          chip.type = 'button'; chip.className = 'chip'; chip.textContent = w;
+          chip.addEventListener('click', () => {
+            input.value += (input.value && !/\s$/.test(input.value) ? ' ' : '') + w + ' ';
+            input.dispatchEvent(new Event('input'));
+          });
+          row.append(chip);
+        }
+      } else {
+        const p = document.createElement('p');
+        p.className = 'hint'; p.style.margin = '0';
+        p.textContent = 'Shown when none of the trigger words are found.';
+        row.append(p);
+      }
+      box.append(row);
+    }
+  }
+
+  /* ---------- Init ---------- */
+  renderFeed();
+  renderList();
+  renderPlayground();
+  applyMood('neutral');
+  renderGuide();
+  renderBrand();
+  if (!ownerName) openWelcome();
+})();
+</script>
+</body>
+</html>
